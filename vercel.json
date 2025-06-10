@@ -2,6 +2,5 @@
   "rewrites": [{ "source": "/(.*)", "destination": "/" }],
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
-  "framework": "vite",
-  "regions": ["dxb1"]
+  "framework": "vite"
 } 
