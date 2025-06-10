@@ -35,7 +35,13 @@ export default defineConfig({
     }
   },
   server: {
-    host: true,
-    strictPort: true
+    host: '127.0.0.1',
+    port: 4000,
+    strictPort: true,
+    hmr: {
+      protocol: 'ws',
+      host: '127.0.0.1',
+      port: 4000
+    }
   }
 });

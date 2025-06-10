@@ -52,8 +52,18 @@ export function log(message: string, source = "express") {
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
-    hmr: { server },
-    allowedHosts: ['*'] as string[],
+    hmr: { 
+      server,
+      port: 4000,
+      host: '127.0.0.1',
+      protocol: 'ws'
+    },
+    server: {
+      host: '127.0.0.1',
+      port: 4000,
+      strictPort: true
+    },
+    allowedHosts: ['127.0.0.1'],
   };
 
   const vite = await createViteServer({

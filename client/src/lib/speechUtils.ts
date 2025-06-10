@@ -11,6 +11,7 @@ interface SpeechRecognitionEvent extends Event {
 
 interface SpeechRecognitionErrorEvent extends Event {
   error: string;
+  message?: string;
 }
 
 interface SpeechRecognition extends EventTarget {
@@ -38,50 +39,128 @@ declare global {
 
 let recognition: SpeechRecognition | null = null;
 let isRecording = false;
+let timeoutId: number | undefined;
 
 export function checkSpeechRecognitionSupport(): boolean {
-  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
-export function startRecording(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!checkSpeechRecognitionSupport()) {
-      reject(new Error('Speech recognition not supported'));
-      return;
+async function requestMicrophonePermission(): Promise<boolean> {
+  try {
+    // First check if we already have permission
+    const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+    if (permissionStatus.state === 'granted') {
+      return true;
     }
 
-    // Use webkitSpeechRecognition for Chrome/Safari compatibility
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
+    // If not granted, request permission
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+    
+    // Clean up the stream after checking permission
+    stream.getTracks().forEach(track => track.stop());
+    return true;
+  } catch (error) {
+    console.error('Microphone permission error:', error);
+    return false;
+  }
+}
 
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US'; // TODO: Add language switching for Urdu
+export async function startRecording(language: string = 'en-US'): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (!checkSpeechRecognitionSupport()) {
+        throw new Error('Speech recognition is not supported in this browser. Please try using Chrome, Edge, or Safari.');
+      }
 
-    recognition.onstart = () => {
-      isRecording = true;
-    };
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        throw new Error('Microphone access is required for voice recording. Please grant permission in your browser settings.');
+      }
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript;
-      resolve(transcript);
-    };
+      // Initialize speech recognition
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      reject(new Error(`Speech recognition error: ${event.error}`));
-    };
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      // Support both English and Urdu with fallback
+      try {
+        recognition.lang = language === 'ur' ? 'ur-PK' : 'en-US';
+      } catch (e) {
+        console.warn('Language not supported, falling back to en-US');
+        recognition.lang = 'en-US';
+      }
 
-    recognition.onend = () => {
-      isRecording = false;
-    };
+      recognition.onstart = () => {
+        isRecording = true;
+        // Set a timeout to stop recording if no speech is detected
+        timeoutId = window.setTimeout(() => {
+          if (isRecording) {
+            stopRecording();
+            reject(new Error('No speech detected. Please try again.'));
+          }
+        }, 10000); // 10 second timeout
+      };
 
-    recognition.start();
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        if (timeoutId) window.clearTimeout(timeoutId);
+        const transcript = event.results[0][0].transcript;
+        resolve(transcript);
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        if (timeoutId) window.clearTimeout(timeoutId);
+        console.error('Speech recognition error:', event.error);
+        let errorMessage = 'An error occurred during voice recording. ';
+        
+        switch (event.error) {
+          case 'no-speech':
+            errorMessage += 'No speech was detected. Please try again.';
+            break;
+          case 'audio-capture':
+            errorMessage += 'No microphone was found. Please check your microphone settings.';
+            break;
+          case 'not-allowed':
+            errorMessage += 'Microphone permission was denied. Please allow microphone access.';
+            break;
+          case 'network':
+            errorMessage += 'Network error occurred. Please check your internet connection.';
+            break;
+          default:
+            errorMessage += event.message || 'Please try again.';
+        }
+        
+        reject(new Error(errorMessage));
+      };
+
+      recognition.onend = () => {
+        if (timeoutId) window.clearTimeout(timeoutId);
+        isRecording = false;
+      };
+
+      recognition.start();
+    } catch (error) {
+      console.error('Error initializing speech recognition:', error);
+      reject(error);
+    }
   });
 }
 
 export function stopRecording(): void {
   if (recognition && isRecording) {
-    recognition.stop();
+    try {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      recognition.stop();
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+    }
     isRecording = false;
   }
 }

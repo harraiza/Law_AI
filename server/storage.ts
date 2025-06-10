@@ -1,6 +1,12 @@
 import { users, chatMessages, lawyers, type DbUser, type InsertUser, type ChatMessage, type InsertChatMessage, type Lawyer, type InsertLawyer, type ChatRequest, type LegalResponse } from "../shared/schema.js";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
+import OpenAI from "openai";
+import { getFallbackResponse } from "../client/src/lib/fallbackData.js";
+
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "fallback-key"
+});
 
 export interface IStorage {
   getUser(id: number): Promise<DbUser | undefined>;
@@ -112,16 +118,78 @@ export class MemStorage implements IStorage {
   }
 
   async handleChat(data: ChatRequest): Promise<LegalResponse> {
-    // For now, return a simple response
-    return {
-      definition: "Legal definition placeholder",
-      explanation: `Response to question: ${data.question}`,
-      constitutionalArticles: [],
-      supremeCourtCases: [],
-      recommendedLawyers: [],
-      followUpQuestions: [],
-      usedFallback: false
-    };
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a Pakistani legal expert AI. Provide accurate legal information in JSON format."
+          },
+          {
+            role: "user",
+            content: `Analyze this legal question: "${data.question}" and provide a JSON response with:
+- definition: Brief definition (${data.language === 'ur' ? 'in Urdu and English' : 'in English'})
+- explanation: Clear explanation
+- constitutionalArticles: Key relevant articles
+- recommendedLawyers: 1-2 relevant lawyers`
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 800,
+        temperature: 0.3
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || "{}");
+      
+      return {
+        definition: result.definition || "Legal definition not available",
+        explanation: result.explanation || "Legal explanation not available", 
+        constitutionalArticles: result.constitutionalArticles || [],
+        supremeCourtCases: result.supremeCourtCases || [],
+        recommendedLawyers: result.recommendedLawyers || [],
+        followUpQuestions: result.followUpQuestions || [],
+        usedFallback: false
+      };
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      // Use fallback data if available
+      const fallback = getFallbackResponse(data.question);
+      if (fallback) {
+        return fallback;
+      }
+      // Return default fallback if no specific fallback is available
+      return {
+        definition: "This appears to be a legal question about Pakistani law.",
+        explanation: "Our AI assistant can help explain Pakistani legal matters in simple terms. Please try rephrasing your question or contact a legal professional for specific advice.",
+        constitutionalArticles: [
+          {
+            article: "4",
+            title: "Right of individuals to be dealt with in accordance with law",
+            summary: "No action detrimental to the life, liberty, body, reputation or property of any person shall be taken except in accordance with law."
+          }
+        ],
+        supremeCourtCases: [
+          {
+            title: "General Legal Principles",
+            summary: "Pakistani courts follow established legal precedents and constitutional principles in all matters."
+          }
+        ],
+        recommendedLawyers: [
+          {
+            name: "Legal Consultation Service",
+            area: "General Legal Advice", 
+            region: "All Major Cities"
+          }
+        ],
+        followUpQuestions: [
+          "Can you be more specific about your legal issue?",
+          "What type of legal matter do you need help with?",
+          "Do you need information about a specific Pakistani law?"
+        ],
+        usedFallback: true
+      };
+    }
   }
 }
 

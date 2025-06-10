@@ -1,7 +1,13 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
 import path from "path";
+
+// Verify OpenAI API key is set
+if (!process.env.OPENAI_API_KEY) {
+  console.error('Warning: OPENAI_API_KEY is not set in environment variables');
+}
 
 const app = express();
 app.use(express.json());
@@ -62,14 +68,14 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  const host = '0.0.0.0';
+  // Server configuration
+  const port = parseInt(process.env.PORT || '4000', 10);
+  const host = '0.0.0.0'; // Bind to all interfaces
   
   server.listen(port, host, () => {
-    console.log(`Server running on http://${host}:${port}`);
+    console.log(`Server running on http://localhost:${port}`);
+    console.log(`You can also try http://127.0.0.1:${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV}`);
   });
 
 })();

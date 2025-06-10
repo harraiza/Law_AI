@@ -103,34 +103,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 async function getLegalResponseFromAI(question: string, language: string): Promise<LegalResponse> {
-  const prompt = `You are the LegalConnect AI chatbot, built for Pakistani users to understand the law in plain terms. 
-
-Analyze this legal question: "${question}"
-
-Respond with a JSON object containing:
-- definition: Brief definition of the legal topic in ${language === 'ur' ? 'Urdu and English' : 'English'}
-- explanation: Clear explanation of the user's question in plain terms
-- constitutionalArticles: Array of relevant Pakistani constitutional articles with article number, title, and summary
-- supremeCourtCases: Array of relevant Supreme Court cases with title and summary
-- recommendedLawyers: Array of 2-3 lawyers with name, area of specialization, and region
-- followUpQuestions: Array of 3 related questions the user might ask
-
-Focus on Pakistani law only. Be accurate and cite real constitutional articles when possible.`;
-
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-3.5-turbo",
     messages: [
       {
         role: "system",
-        content: "You are a Pakistani legal expert AI. Provide accurate legal information based on Pakistani Constitution, laws, and Supreme Court cases. Always respond in the requested JSON format."
+        content: "You are a Pakistani legal expert AI. Provide accurate legal information in JSON format."
       },
       {
         role: "user",
-        content: prompt
+        content: `Analyze this legal question: "${question}" and provide a JSON response with:
+- definition: Brief definition (${language === 'ur' ? 'in Urdu and English' : 'in English'})
+- explanation: Clear explanation
+- constitutionalArticles: Key relevant articles
+- recommendedLawyers: 1-2 relevant lawyers`
       }
     ],
     response_format: { type: "json_object" },
-    max_tokens: 1500,
+    max_tokens: 800,
     temperature: 0.3
   });
 
