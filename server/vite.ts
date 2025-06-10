@@ -110,12 +110,16 @@ export function serveStatic(app: Express) {
   }
 
   // Serve static files
-  app.use(express.static(distPath, {
-    index: false // Don't serve index.html for the root path
-  }));
+  app.use(express.static(distPath));
 
   // Handle all routes by serving index.html
   app.get('*', (_req, res) => {
+    // Set cache control headers to prevent caching of index.html
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
