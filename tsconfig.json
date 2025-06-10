@@ -1,24 +1,27 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "strict": true,
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "outDir": "dist",
-    "rootDir": ".",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "outDir": "./dist",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
     "allowJs": true,
-    "baseUrl": ".",
+    "esModuleInterop": true,
     "paths": {
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"]
-    },
-    "types": ["node", "vite/client"],
-    "lib": ["esnext", "dom", "dom.iterable"],
-    "jsx": "react-jsx"
+      "@shared/*": ["./shared/*"],
+      "@assets/*": ["./attached_assets/*"]
+    }
   },
-  "include": ["server/**/*", "shared/**/*", "client/src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["client/src", "server", "shared"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

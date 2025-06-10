@@ -3,8 +3,38 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { nanoid } from "nanoid";
+
+const viteConfig = defineConfig({
+  base: '/',
+  plugins: [
+    react(),
+    runtimeErrorOverlay(),
+    ...(process.env.NODE_ENV !== "production" &&
+    process.env.REPL_ID !== undefined
+      ? [
+          await import("@replit/vite-plugin-cartographer").then((m) =>
+            m.cartographer(),
+          ),
+        ]
+      : []),
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "..", "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "..", "shared"),
+      "@assets": path.resolve(import.meta.dirname, "..", "attached_assets"),
+    },
+  },
+  root: path.resolve(import.meta.dirname, "..", "client"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "..", "dist/public"),
+    emptyOutDir: true,
+  },
+});
 
 const viteLogger = createLogger();
 
@@ -68,7 +98,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  const distPath = path.resolve(import.meta.dirname, "..", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -76,10 +106,13 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Serve static files
+  app.use(express.static(distPath, {
+    index: false // Don't serve index.html for the root path
+  }));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // Handle all routes by serving index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
   });
 }

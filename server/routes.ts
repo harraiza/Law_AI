@@ -1,9 +1,8 @@
-import type { Express } from "express";
+import { Router, type Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { chatRequestSchema } from "@shared/schema";
-import type { LegalResponse } from "@shared/schema";
-import { getFallbackResponse } from "../client/src/lib/fallbackData";
+import { WebSocketServer } from "ws";
+import { storage } from "./storage.js";
+import { chatRequestSchema, type LegalResponse } from "../shared/schema.js";
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -12,44 +11,62 @@ const openai = new OpenAI({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  // Chat endpoint for legal queries
   app.post("/api/chat", async (req, res) => {
-    try {
-      const startTime = Date.now();
-      const { question, language } = chatRequestSchema.parse(req.body);
-      
-      let response: LegalResponse;
-      let usedFallback = false;
-
-      try {
-        // Try OpenAI first
-        response = await getLegalResponseFromAI(question, language);
-      } catch (error) {
-        console.error("OpenAI failed, using fallback:", error);
-        // Fall back to preloaded data
-        response = getFallbackResponse(question) || getDefaultFallbackResponse();
-        usedFallback = true;
-      }
-
-      const responseTime = Date.now() - startTime;
-
-      // Store chat message
-      await storage.createChatMessage({
-        question,
-        response: JSON.stringify(response),
-        language,
-        usedFallback,
-        responseTime
-      });
-
-      response.usedFallback = usedFallback;
-      res.json(response);
-
-    } catch (error) {
-      console.error("Chat endpoint error:", error);
-      res.status(500).json({ error: "Failed to process legal query" });
+    const result = chatRequestSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: "Invalid request body" });
+      return;
     }
+
+    try {
+      const response = await storage.handleChat(result.data);
+      await storage.createChatMessage({
+        question: result.data.question,
+        response: JSON.stringify(response),
+        language: result.data.language,
+        usedFallback: false,
+        responseTime: 0
+      });
+      res.json(response);
+    } catch (error) {
+      console.error("Error handling chat:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  const wss = new WebSocketServer({ server: httpServer });
+
+  wss.on("connection", (ws) => {
+    console.log("Client connected");
+
+    ws.on("message", async (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        const result = chatRequestSchema.safeParse(data);
+        if (!result.success) {
+          ws.send(JSON.stringify({ error: "Invalid message format" }));
+          return;
+        }
+
+        const response = await storage.handleChat(result.data);
+        await storage.createChatMessage({
+          question: result.data.question,
+          response: JSON.stringify(response),
+          language: result.data.language,
+          usedFallback: false,
+          responseTime: 0
+        });
+        ws.send(JSON.stringify({ response }));
+      } catch (error) {
+        console.error("Error handling WebSocket message:", error);
+        ws.send(JSON.stringify({ error: "Internal server error" }));
+      }
+    });
+
+    ws.on("close", () => {
+      console.log("Client disconnected");
+    });
   });
 
   // Get lawyers endpoint
@@ -82,7 +99,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
   return httpServer;
 }
 

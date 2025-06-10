@@ -1,4 +1,6 @@
-import { users, chatMessages, lawyers, type DbUser, type InsertUser, type ChatMessage, type InsertChatMessage, type Lawyer, type InsertLawyer } from "@shared/schema";
+import { users, chatMessages, lawyers, type DbUser, type InsertUser, type ChatMessage, type InsertChatMessage, type Lawyer, type InsertLawyer, type ChatRequest, type LegalResponse } from "../shared/schema.js";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { Pool } from "@neondatabase/serverless";
 
 export interface IStorage {
   getUser(id: number): Promise<DbUser | undefined>;
@@ -11,6 +13,8 @@ export interface IStorage {
   getLawyers(): Promise<Lawyer[]>;
   getLawyersBySpecialization(specialization: string): Promise<Lawyer[]>;
   createLawyer(lawyer: InsertLawyer): Promise<Lawyer>;
+  
+  handleChat(data: ChatRequest): Promise<LegalResponse>;
 }
 
 export class MemStorage implements IStorage {
@@ -75,8 +79,9 @@ export class MemStorage implements IStorage {
       ...insertMessage,
       id,
       createdAt: new Date(),
-      usedFallback: insertMessage.usedFallback ?? false,
-      language: insertMessage.language ?? "en"
+      language: insertMessage.language || "en",
+      usedFallback: insertMessage.usedFallback || false,
+      responseTime: insertMessage.responseTime || 0
     };
     this.chatMessages.set(id, message);
     return message;
@@ -104,6 +109,19 @@ export class MemStorage implements IStorage {
     const lawyer: Lawyer = { ...insertLawyer, id };
     this.lawyers.set(id, lawyer);
     return lawyer;
+  }
+
+  async handleChat(data: ChatRequest): Promise<LegalResponse> {
+    // For now, return a simple response
+    return {
+      definition: "Legal definition placeholder",
+      explanation: `Response to question: ${data.question}`,
+      constitutionalArticles: [],
+      supremeCourtCases: [],
+      recommendedLawyers: [],
+      followUpQuestions: [],
+      usedFallback: false
+    };
   }
 }
 

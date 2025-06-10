@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import fs from "fs";
+import { type ChatRequest } from "@shared/schema.js";
 
 /*
 Follow these instructions when using this blueprint:
