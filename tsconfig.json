@@ -16,7 +16,8 @@
       "@shared/*": ["./shared/*"]
     },
     "types": ["node", "vite/client"],
-    "lib": ["esnext", "dom", "dom.iterable"]
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "jsx": "react-jsx"
   },
   "include": ["server/**/*", "shared/**/*", "client/src/**/*"],
   "exclude": ["node_modules", "dist"]

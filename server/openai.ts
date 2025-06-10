@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import fs from "fs";
 
 /*
 Follow these instructions when using this blueprint:
@@ -7,9 +8,9 @@ Follow these instructions when using this blueprint:
 3. Request output in JSON format in the prompt
 */
 
-// Use 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY || '' // Provide empty string as fallback
+});
 
 // Basic text analysis example
 async function summarizeArticle(text: string): Promise<string> {
@@ -20,7 +21,7 @@ async function summarizeArticle(text: string): Promise<string> {
     messages: [{ role: "user", content: prompt }],
   });
 
-  return response.choices[0].message.content;
+  return response.choices[0].message.content || '';
 }
 
 async function analyzeSentiment(text: string): Promise<{
@@ -44,14 +45,15 @@ async function analyzeSentiment(text: string): Promise<{
       response_format: { type: "json_object" },
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    const result = JSON.parse(response.choices[0].message.content || '{}');
 
     return {
       rating: Math.max(1, Math.min(5, Math.round(result.rating))),
       confidence: Math.max(0, Math.min(1, result.confidence)),
     };
   } catch (error) {
-    throw new Error("Failed to analyze sentiment: " + error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error("Failed to analyze sentiment: " + errorMessage);
   }
 }
 
@@ -79,8 +81,7 @@ async function analyzeImage(base64Image: string): Promise<string> {
     max_tokens: 500,
   });
 
-  return visionResponse.choices[0].message.content;
-
+  return visionResponse.choices[0].message.content || '';
 }
 
 // Image generation example
@@ -93,12 +94,20 @@ async function generateImage(text: string): Promise<{ url: string }> {
     quality: "standard",
   });
 
+  if (!response.data?.[0]?.url) {
+    throw new Error("Failed to generate image: No URL returned");
+  }
+
   return { url: response.data[0].url };
 }
 
 // Audio transcription example
-import fs from "fs";
-async function transcribeAudio(audioFilePath: string): Promise<{ text: string, duration: number }> {
+interface TranscriptionResult {
+  text: string;
+  duration: number;
+}
+
+async function transcribeAudio(audioFilePath: string): Promise<TranscriptionResult> {
   const audioReadStream = fs.createReadStream(audioFilePath);
 
   const transcription = await openai.audio.transcriptions.create({
@@ -108,6 +117,14 @@ async function transcribeAudio(audioFilePath: string): Promise<{ text: string, d
 
   return {
     text: transcription.text,
-    duration: transcription.duration || 0,
+    duration: 0, // Since duration is not available in the API response, we'll default to 0
   };
 }
+
+export {
+  summarizeArticle,
+  analyzeSentiment,
+  analyzeImage,
+  generateImage,
+  transcribeAudio
+};
