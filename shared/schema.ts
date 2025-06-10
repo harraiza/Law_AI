@@ -54,7 +54,7 @@ export const chatRequestSchema = z.object({
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type DbUser = typeof users.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertLawyer = z.infer<typeof insertLawyerSchema>;
@@ -89,6 +89,6 @@ export const userSchema = z.object({
   email: z.string().email(),
 });
 
-export type User = z.infer<typeof userSchema>;
+export type UserProfile = z.infer<typeof userSchema>;
 
 // Add other schemas as needed
