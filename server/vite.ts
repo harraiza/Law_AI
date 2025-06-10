@@ -109,17 +109,33 @@ export function serveStatic(app: Express) {
     );
   }
 
-  // Serve static files
-  app.use(express.static(distPath));
+  // Serve static files with caching headers
+  app.use(express.static(distPath, {
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        // Don't cache HTML files
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      } else {
+        // Cache other static files for 1 hour
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      }
+    }
+  }));
 
-  // Handle all routes by serving index.html
-  app.get('*', (_req, res) => {
-    // Set cache control headers to prevent caching of index.html
-    res.set({
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
+  // Handle client-side routing by serving index.html for all non-file routes
+  app.get('*', (req, res, next) => {
+    // Skip this middleware if the request is for a static file
+    if (req.path.includes('.')) {
+      return next();
+    }
+
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
