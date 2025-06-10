@@ -1,9 +1,9 @@
-import { users, chatMessages, lawyers, type User, type InsertUser, type ChatMessage, type InsertChatMessage, type Lawyer, type InsertLawyer } from "@shared/schema";
+import { users, chatMessages, lawyers, type DbUser, type InsertUser, type ChatMessage, type InsertChatMessage, type Lawyer, type InsertLawyer } from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getUser(id: number): Promise<DbUser | undefined>;
+  getUserByUsername(username: string): Promise<DbUser | undefined>;
+  createUser(user: InsertUser): Promise<DbUser>;
   
   createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
   getChatHistory(limit?: number): Promise<ChatMessage[]>;
@@ -14,7 +14,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<number, User>;
+  private users: Map<number, DbUser>;
   private chatMessages: Map<number, ChatMessage>;
   private lawyers: Map<number, Lawyer>;
   private currentUserId: number;
@@ -52,19 +52,19 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: number): Promise<DbUser | undefined> {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username: string): Promise<DbUser | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser): Promise<DbUser> {
     const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
+    const user: DbUser = { ...insertUser, id };
     this.users.set(id, user);
     return user;
   }
