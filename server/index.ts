@@ -1,8 +1,13 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { createServer } from "./vite.js";
 import path from "path";
+
+// Helper function for logging
+const log = (message: string) => {
+  console.log(`[${new Date().toISOString()}] ${message}`);
+};
 
 // Verify environment variables
 const requiredEnvVars = ['NODE_ENV'];
@@ -80,7 +85,7 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    const server = await registerRoutes(app);
+    const server = await createServer();
 
     // Handle API errors
     app.use("/api", (err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -89,13 +94,6 @@ app.use((req, res, next) => {
       const message = err.message || "Internal Server Error";
       res.status(status).json({ error: message });
     });
-
-    // Setup static file serving and client-side routing
-    if (app.get("env") === "development") {
-      await setupVite(app, server);
-    } else {
-      serveStatic(app);
-    }
 
     // Server configuration
     const port = parseInt(process.env.PORT || '4000', 10);
