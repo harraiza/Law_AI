@@ -1,7 +1,7 @@
 console.log('--- /api/chat invoked ---');
 import Groq from 'groq-sdk';
-const { chatRequestSchema } = require('./schema.js');
-const { getFallbackResponse } = require('./fallbackData.js');
+import { chatRequestSchema } from './schema.js';
+import { getFallbackResponse } from './fallbackData.js';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY || ''

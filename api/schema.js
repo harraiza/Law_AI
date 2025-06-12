@@ -1,11 +1,9 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
-const chatRequestSchema = z.object({
+export const chatRequestSchema = z.object({
   question: z.string().min(1),
   language: z.enum(["en", "ur"]).default("en"),
 });
 
 // This is just for type hinting, not used at runtime
-// type LegalResponse = { ... };
-
-module.exports = { chatRequestSchema }; 
+// type LegalResponse = { ... }; 

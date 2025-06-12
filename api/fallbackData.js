@@ -1,4 +1,4 @@
-const fallbackResponses = {
+export const fallbackResponses = {
   "arrest": {
     definition: "An arrest is the detention of a person by legal authority. In Pakistan, arrests are governed by the Code of Criminal Procedure 1898 and the Constitution.",
     explanation: "Police arrest powers are limited by constitutional protections. Generally, police cannot arrest without a warrant except in specific circumstances like catching someone committing a cognizable offense.",
@@ -42,7 +42,7 @@ const fallbackResponses = {
   // ... (other responses: dowry, cybercrime, women)
 };
 
-function getFallbackResponse(question) {
+export function getFallbackResponse(question) {
   const lowerQuestion = question.toLowerCase();
   if (lowerQuestion.includes("arrest") || lowerQuestion.includes("police") || lowerQuestion.includes("warrant")) {
     return fallbackResponses.arrest;
@@ -87,6 +87,4 @@ function getFallbackResponse(question) {
     ],
     usedFallback: true
   };
-}
-
-module.exports = { getFallbackResponse }; 
+} 
