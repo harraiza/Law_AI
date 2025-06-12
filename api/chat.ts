@@ -40,11 +40,11 @@ export default async function handler(req: any, res: any) {
       messages: [
         {
           role: 'system',
-          content: 'You are a Pakistani legal expert AI. Provide accurate legal information in JSON format.'
+          content: `You are a Pakistani legal expert AI. Always respond ONLY with a valid JSON object, no explanations or extra text. The JSON must have the following keys: definition, explanation, constitutionalArticles, supremeCourtCases, recommendedLawyers, followUpQuestions, usedFallback.`
         },
         {
           role: 'user',
-          content: `Analyze this legal question: "${question}" and provide a JSON response with:\n- definition: Brief definition (${language === 'ur' ? 'in Urdu and English' : 'in English'})\n- explanation: Clear explanation\n- constitutionalArticles: Key relevant articles\n- recommendedLawyers: 1-2 relevant lawyers`
+          content: `Analyze this legal question: "${question}" and provide a JSON response with:\n- definition: Brief definition (${language === 'ur' ? 'in Urdu and English' : 'in English'})\n- explanation: Clear explanation\n- constitutionalArticles: Key relevant articles\n- recommendedLawyers: 1-2 relevant lawyers\n- supremeCourtCases: 1-2 relevant cases\n- followUpQuestions: 2-3 suggested follow-up questions\n- usedFallback: false`
         }
       ],
       max_tokens: 800,
