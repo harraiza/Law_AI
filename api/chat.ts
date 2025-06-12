@@ -4,7 +4,7 @@ import { chatRequestSchema } from './schema.js';
 import { getFallbackResponse } from './fallbackData.js';
 
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || ''
+  apiKey: "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"
 });
 
 export default async function handler(req: any, res: any) {
