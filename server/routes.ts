@@ -3,11 +3,11 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from "ws";
 import { storage } from "./storage.js";
 import { chatRequestSchema, type LegalResponse } from "../shared/schema.js";
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "fallback-key"
+const groq = new Groq({ 
+  apiKey: process.env.GROQ_API_KEY || process.env.GROQ_KEY || "fallback-key"
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -103,8 +103,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 async function getLegalResponseFromAI(question: string, language: string): Promise<LegalResponse> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
+  const response = await groq.chat.completions.create({
+    model: "llama3-8b-8192",
     messages: [
       {
         role: "system",
@@ -112,20 +112,14 @@ async function getLegalResponseFromAI(question: string, language: string): Promi
       },
       {
         role: "user",
-        content: `Analyze this legal question: "${question}" and provide a JSON response with:
-- definition: Brief definition (${language === 'ur' ? 'in Urdu and English' : 'in English'})
-- explanation: Clear explanation
-- constitutionalArticles: Key relevant articles
-- recommendedLawyers: 1-2 relevant lawyers`
+        content: `Analyze this legal question: \"${question}\" and provide a JSON response with:\n- definition: Brief definition (${language === 'ur' ? 'in Urdu and English' : 'in English'})\n- explanation: Clear explanation\n- constitutionalArticles: Key relevant articles\n- recommendedLawyers: 1-2 relevant lawyers`
       }
     ],
-    response_format: { type: "json_object" },
     max_tokens: 800,
     temperature: 0.3
   });
 
   const result = JSON.parse(response.choices[0].message.content || "{}");
-  
   return {
     definition: result.definition || "Legal definition not available",
     explanation: result.explanation || "Legal explanation not available", 

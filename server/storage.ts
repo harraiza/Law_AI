@@ -1,11 +1,11 @@
 import { users, chatMessages, lawyers, type DbUser, type InsertUser, type ChatMessage, type InsertChatMessage, type Lawyer, type InsertLawyer, type ChatRequest, type LegalResponse } from "../shared/schema.js";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 import { getFallbackResponse } from "../client/src/lib/fallbackData.js";
 
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "fallback-key"
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || process.env.GROQ_KEY || "fallback-key"
 });
 
 export interface IStorage {
@@ -119,13 +119,13 @@ export class MemStorage implements IStorage {
 
   async handleChat(data: ChatRequest): Promise<LegalResponse> {
     try {
-      if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "fallback-key") {
+      if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === "fallback-key") {
         console.log("Using fallback response due to missing API key");
         return getFallbackResponse(data.question) || this.getDefaultFallbackResponse();
       }
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+      const response = await groq.chat.completions.create({
+        model: "llama3-8b-8192",
         messages: [
           {
             role: "system",
@@ -133,20 +133,14 @@ export class MemStorage implements IStorage {
           },
           {
             role: "user",
-            content: `Analyze this legal question: "${data.question}" and provide a JSON response with:
-- definition: Brief definition (${data.language === 'ur' ? 'in Urdu and English' : 'in English'})
-- explanation: Clear explanation
-- constitutionalArticles: Key relevant articles
-- recommendedLawyers: 1-2 relevant lawyers`
+            content: `Analyze this legal question: "${data.question}" and provide a JSON response with:\n- definition: Brief definition (${data.language === 'ur' ? 'in Urdu and English' : 'in English'})\n- explanation: Clear explanation\n- constitutionalArticles: Key relevant articles\n- recommendedLawyers: 1-2 relevant lawyers`
           }
         ],
-        response_format: { type: "json_object" },
         max_tokens: 800,
         temperature: 0.3
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
-      
       return {
         definition: result.definition || "Legal definition not available",
         explanation: result.explanation || "Legal explanation not available", 

@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 import fs from "fs";
 import { type ChatRequest } from "@shared/schema.js";
 
@@ -9,16 +9,16 @@ Follow these instructions when using this blueprint:
 3. Request output in JSON format in the prompt
 */
 
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || '' // Provide empty string as fallback
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || ''
 });
 
 // Basic text analysis example
 async function summarizeArticle(text: string): Promise<string> {
   const prompt = `Please summarize the following text concisely while maintaining key points:\n\n${text}`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+  const response = await groq.chat.completions.create({
+    model: "llama3-8b-8192",
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -30,8 +30,8 @@ async function analyzeSentiment(text: string): Promise<{
   confidence: number
 }> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await groq.chat.completions.create({
+      model: "llama3-8b-8192",
       messages: [
         {
           role: "system",
@@ -43,7 +43,6 @@ async function analyzeSentiment(text: string): Promise<{
           content: text,
         },
       ],
-      response_format: { type: "json_object" },
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{}');
@@ -58,68 +57,24 @@ async function analyzeSentiment(text: string): Promise<{
   }
 }
 
-// Image analysis example
+// Image analysis example (Groq does not support image analysis yet, so throw error)
 async function analyzeImage(base64Image: string): Promise<string> {
-  const visionResponse = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Analyze this image in detail and describe its key elements, context, and any notable aspects."
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:image/jpeg;base64,${base64Image}`
-            }
-          }
-        ],
-      },
-    ],
-    max_tokens: 500,
-  });
-
-  return visionResponse.choices[0].message.content || '';
+  throw new Error("Image analysis is not supported by Groq API.");
 }
 
-// Image generation example
+// Image generation example (Groq does not support image generation yet, so throw error)
 async function generateImage(text: string): Promise<{ url: string }> {
-  const response = await openai.images.generate({
-    model: "dall-e-3",
-    prompt: text,
-    n: 1,
-    size: "1024x1024",
-    quality: "standard",
-  });
-
-  if (!response.data?.[0]?.url) {
-    throw new Error("Failed to generate image: No URL returned");
-  }
-
-  return { url: response.data[0].url };
+  throw new Error("Image generation is not supported by Groq API.");
 }
 
-// Audio transcription example
+// Audio transcription example (Groq does not support audio transcription yet, so throw error)
 interface TranscriptionResult {
   text: string;
   duration: number;
 }
 
 async function transcribeAudio(audioFilePath: string): Promise<TranscriptionResult> {
-  const audioReadStream = fs.createReadStream(audioFilePath);
-
-  const transcription = await openai.audio.transcriptions.create({
-    file: audioReadStream,
-    model: "whisper-1",
-  });
-
-  return {
-    text: transcription.text,
-    duration: 0, // Since duration is not available in the API response, we'll default to 0
-  };
+  throw new Error("Audio transcription is not supported by Groq API.");
 }
 
 export {

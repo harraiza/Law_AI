@@ -17,8 +17,8 @@ if (missingEnvVars.length > 0) {
   console.error(`Warning: Missing required environment variables: ${missingEnvVars.join(', ')}`);
 }
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('Warning: OPENAI_API_KEY is not set. The application will use fallback responses.');
+if (!process.env.GROQ_API_KEY) {
+  console.warn('Warning: GROQ_API_KEY is not set. The application will use fallback responses.');
 }
 
 const app = express();
