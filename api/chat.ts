@@ -1,19 +1,28 @@
+console.log('--- /api/chat invoked ---');
 import Groq from 'groq-sdk';
-import { chatRequestSchema, type LegalResponse } from '../shared/schema';
-import { getFallbackResponse } from '../client/src/lib/fallbackData';
+const { chatRequestSchema } = require('./schema.js');
+const { getFallbackResponse } = require('./fallbackData.js');
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY || ''
 });
 
 export default async function handler(req: any, res: any) {
+  console.log('Handler called', { method: req.method, env: process.env.GROQ_API_KEY ? 'API key present' : 'API key missing' });
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const result = chatRequestSchema.safeParse(req.body);
-  if (!result.success) {
+  let result;
+  try {
+    result = chatRequestSchema.safeParse(req.body);
+  } catch (e) {
+    console.error('Schema parse error:', e);
+    return res.status(500).json({ error: 'Schema parse error', details: String(e) });
+  }
+  if (!result || !result.success) {
+    console.error('Invalid request body', req.body);
     return res.status(400).json({ error: 'Invalid request body' });
   }
 
@@ -41,9 +50,9 @@ export default async function handler(req: any, res: any) {
       max_tokens: 800,
       temperature: 0.3
     });
-
+    console.log('Groq response:', response);
     const resultJson = JSON.parse(response.choices[0].message.content || '{}');
-    const legalResponse: LegalResponse = {
+    const legalResponse = {
       definition: resultJson.definition || 'Legal definition not available',
       explanation: resultJson.explanation || 'Legal explanation not available',
       constitutionalArticles: resultJson.constitutionalArticles || [],
@@ -55,8 +64,8 @@ export default async function handler(req: any, res: any) {
     return res.json(legalResponse);
   } catch (error) {
     console.error('Error getting AI response:', error);
-    const fallback = getFallbackResponse(question);
+    const fallback = getFallbackResponse ? getFallbackResponse(question) : null;
     if (fallback) return res.json(fallback);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error', details: String(error) });
   }
 } 
