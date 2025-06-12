@@ -2,6 +2,7 @@ console.log('--- /api/chat invoked ---');
 import Groq from 'groq-sdk';
 import { chatRequestSchema } from './schema.js';
 import { getFallbackResponse } from './fallbackData.js';
+import { jsonrepair } from 'jsonrepair';
 
 const groq = new Groq({
   apiKey: "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"
@@ -50,8 +51,21 @@ export default async function handler(req: any, res: any) {
       max_tokens: 800,
       temperature: 0.3
     });
-    console.log('Groq response:', response);
-    const resultJson = JSON.parse(response.choices[0].message.content || '{}');
+    let rawContent = response.choices[0].message.content || '{}';
+    console.log('Raw Groq message:', rawContent);
+    let resultJson;
+    try {
+      resultJson = JSON.parse(rawContent);
+    } catch (e) {
+      try {
+        const repaired = jsonrepair(rawContent);
+        console.log('Repaired JSON:', repaired);
+        resultJson = JSON.parse(repaired);
+      } catch (e2) {
+        console.error('Still invalid JSON after repair:', rawContent);
+        throw e2;
+      }
+    }
     const legalResponse = {
       definition: resultJson.definition || 'Legal definition not available',
       explanation: resultJson.explanation || 'Legal explanation not available',
