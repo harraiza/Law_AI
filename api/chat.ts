@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Groq from 'groq-sdk';
 import { chatRequestSchema, type LegalResponse } from '../shared/schema';
 import { getFallbackResponse } from '../client/src/lib/fallbackData';
@@ -7,7 +6,7 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY || ''
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method Not Allowed' });
