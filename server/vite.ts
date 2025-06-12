@@ -7,6 +7,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { nanoid } from "nanoid";
+import { registerRoutes } from './routes.js';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const viteConfig = defineConfig({
   base: '/',
@@ -49,56 +54,41 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-export async function setupVite(app: Express, server: Server) {
+export async function createServer() {
+  const app = express();
+
+  // Create Vite server in middleware mode
   const vite = await createViteServer({
-    server: {
-      middlewareMode: true,
-      hmr: {
-        server
-      }
-    },
+    server: { middlewareMode: true },
     appType: 'custom'
   });
+
+  // Handle API routes first
+  const httpServer = await registerRoutes(app);
 
   // Use vite's connect instance as middleware
   app.use(vite.middlewares);
 
-  // Handle API routes before Vite middleware
-  app.use('/api', (req, res, next) => {
-    // Ensure API routes are handled by the Express app
-    if (req.method === 'OPTIONS') {
-      res.status(200).end();
-      return;
-    }
-    next();
-  });
+  // Serve static files from the dist directory in production
+  if (process.env.NODE_ENV === 'production') {
+    const distPath = resolve(__dirname, '../client/dist');
+    const indexHtml = fs.readFileSync(resolve(distPath, 'index.html'), 'utf-8');
 
-  app.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
+    // Serve static files
+    app.use(express.static(distPath, {
+      index: false,
+      setHeaders: (res) => {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    }));
 
-    try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
+    // Handle all other routes by serving index.html
+    app.use('*', (req, res) => {
+      res.status(200).set({ 'Content-Type': 'text/html' }).end(indexHtml);
+    });
+  }
 
-      // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
-      next(e);
-    }
-  });
-
-  return vite;
+  return httpServer;
 }
 
 export function serveStatic(app: Express) {
