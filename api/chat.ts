@@ -8,6 +8,43 @@ const groq = new Groq({
   apiKey: "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"
 });
 
+const SYSTEM_PROMPT = `
+You are a Pakistani legal expert AI. Always respond ONLY with a valid JSON object, no explanations or extra text.
+The JSON must have the following keys: definition, explanation, constitutionalArticles, supremeCourtCases, recommendedLawyers, followUpQuestions, usedFallback.
+NEVER leave any field blank or as an empty string/array. If you do not know, make a plausible example.
+Here is an example of the required format:
+
+{
+  "definition": "A brief definition here.",
+  "explanation": "A clear explanation here.",
+  "constitutionalArticles": [
+    {
+      "article": "10",
+      "title": "Safeguards as to arrest and detention",
+      "summary": "No person who is arrested shall be detained in custody without being informed of the grounds for such arrest."
+    }
+  ],
+  "supremeCourtCases": [
+    {
+      "title": "Muhammad Akram vs State",
+      "summary": "Established that arrests without proper grounds violate constitutional rights."
+    }
+  ],
+  "recommendedLawyers": [
+    {
+      "name": "Ahmed Ali Khan",
+      "area": "Criminal Law",
+      "region": "Lahore"
+    }
+  ],
+  "followUpQuestions": [
+    "What are the specific circumstances under which an arrest can be made without a warrant?",
+    "What are the procedures that police officers must follow when making an arrest without a warrant?"
+  ],
+  "usedFallback": false
+}
+`;
+
 export default async function handler(req: any, res: any) {
   console.log('Handler called', { method: req.method, env: process.env.GROQ_API_KEY ? 'API key present' : 'API key missing' });
   if (req.method !== 'POST') {
@@ -41,7 +78,7 @@ export default async function handler(req: any, res: any) {
       messages: [
         {
           role: 'system',
-          content: `You are a Pakistani legal expert AI. Always respond ONLY with a valid JSON object, no explanations or extra text. The JSON must have the following keys: definition, explanation, constitutionalArticles, supremeCourtCases, recommendedLawyers, followUpQuestions, usedFallback.`
+          content: SYSTEM_PROMPT
         },
         {
           role: 'user',
