@@ -50,37 +50,29 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { 
-      server,
-      port: 4000,
-      host: '127.0.0.1',
-      protocol: 'ws'
-    },
-    server: {
-      host: '127.0.0.1',
-      port: 4000,
-      strictPort: true
-    },
-    allowedHosts: ['127.0.0.1'],
-  };
-
   const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      },
+    server: {
+      middlewareMode: true,
+      hmr: {
+        server
+      }
     },
-    server: serverOptions,
-    appType: "custom",
+    appType: 'custom'
   });
 
+  // Use vite's connect instance as middleware
   app.use(vite.middlewares);
+
+  // Handle API routes before Vite middleware
+  app.use('/api', (req, res, next) => {
+    // Ensure API routes are handled by the Express app
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+    next();
+  });
+
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
@@ -105,47 +97,26 @@ export async function setupVite(app: Express, server: Server) {
       next(e);
     }
   });
+
+  return vite;
 }
 
 export function serveStatic(app: Express) {
-  // In production, we need to look in the dist/public directory
-  const distPath = process.env.NODE_ENV === 'production'
-    ? path.resolve(process.cwd(), "dist", "public")
-    : path.resolve(import.meta.dirname, "..", "dist", "public");
+  const distPath = path.resolve(process.cwd(), 'dist/public');
+  app.use(express.static(distPath));
 
-  if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
-    );
-  }
-
-  // Serve static files with caching headers
-  app.use(express.static(distPath, {
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) {
-        // Don't cache HTML files
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-      } else {
-        // Cache other static files for 1 hour
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-      }
+  // Handle API routes before static files
+  app.use('/api', (req, res, next) => {
+    // Ensure API routes are handled by the Express app
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
     }
-  }));
+    next();
+  });
 
-  // Handle client-side routing by serving index.html for all non-file routes
-  app.get('*', (req, res, next) => {
-    // Skip this middleware if the request is for a static file
-    if (req.path.includes('.')) {
-      return next();
-    }
-
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+  // Handle SPA routing
+  app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
