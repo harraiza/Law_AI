@@ -4,23 +4,50 @@ import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
 import path from "path";
 
-// Verify OpenAI API key is set
+// Verify environment variables
+const requiredEnvVars = ['NODE_ENV'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`Warning: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+}
+
 if (!process.env.OPENAI_API_KEY) {
-  console.error('Warning: OPENAI_API_KEY is not set in environment variables');
+  console.warn('Warning: OPENAI_API_KEY is not set. The application will use fallback responses.');
 }
 
 const app = express();
+
+// Trust proxy for secure cookies and proper IP handling
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Add CORS headers
-app.use((_req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+app.use((req, res, next) => {
+  const origin = req.headers.origin || 'http://localhost:4000';
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
   next();
 });
 
+// Error handling middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Error:', err);
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  res.status(status).json({ error: message });
+});
+
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -52,30 +79,34 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    const server = await registerRoutes(app);
 
-  // Handle API errors
-  app.use("/api", (err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-  });
+    // Handle API errors
+    app.use("/api", (err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error('API Error:', err);
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ error: message });
+    });
 
-  // Setup static file serving and client-side routing
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Setup static file serving and client-side routing
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    // Server configuration
+    const port = parseInt(process.env.PORT || '4000', 10);
+    const host = 'localhost'; // Changed to localhost for development
+    
+    server.listen(port, host, () => {
+      console.log(`Server running on http://${host}:${port}`);
+      console.log(`Environment: ${process.env.NODE_ENV}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
-
-  // Server configuration
-  const port = parseInt(process.env.PORT || '4000', 10);
-  const host = '0.0.0.0'; // Bind to all interfaces
-  
-  server.listen(port, host, () => {
-    console.log(`Server running on http://localhost:${port}`);
-    console.log(`You can also try http://127.0.0.1:${port}`);
-    console.log(`Environment: ${process.env.NODE_ENV}`);
-  });
-
 })();

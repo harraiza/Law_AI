@@ -119,6 +119,11 @@ export class MemStorage implements IStorage {
 
   async handleChat(data: ChatRequest): Promise<LegalResponse> {
     try {
+      if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "fallback-key") {
+        console.log("Using fallback response due to missing API key");
+        return getFallbackResponse(data.question) || this.getDefaultFallbackResponse();
+      }
+
       const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
@@ -156,40 +161,45 @@ export class MemStorage implements IStorage {
       // Use fallback data if available
       const fallback = getFallbackResponse(data.question);
       if (fallback) {
+        console.log("Using specific fallback response for question");
         return fallback;
       }
-      // Return default fallback if no specific fallback is available
-      return {
-        definition: "This appears to be a legal question about Pakistani law.",
-        explanation: "Our AI assistant can help explain Pakistani legal matters in simple terms. Please try rephrasing your question or contact a legal professional for specific advice.",
-        constitutionalArticles: [
-          {
-            article: "4",
-            title: "Right of individuals to be dealt with in accordance with law",
-            summary: "No action detrimental to the life, liberty, body, reputation or property of any person shall be taken except in accordance with law."
-          }
-        ],
-        supremeCourtCases: [
-          {
-            title: "General Legal Principles",
-            summary: "Pakistani courts follow established legal precedents and constitutional principles in all matters."
-          }
-        ],
-        recommendedLawyers: [
-          {
-            name: "Legal Consultation Service",
-            area: "General Legal Advice", 
-            region: "All Major Cities"
-          }
-        ],
-        followUpQuestions: [
-          "Can you be more specific about your legal issue?",
-          "What type of legal matter do you need help with?",
-          "Do you need information about a specific Pakistani law?"
-        ],
-        usedFallback: true
-      };
+      console.log("Using default fallback response");
+      return this.getDefaultFallbackResponse();
     }
+  }
+
+  private getDefaultFallbackResponse(): LegalResponse {
+    return {
+      definition: "This appears to be a legal question about Pakistani law.",
+      explanation: "Our AI assistant can help explain Pakistani legal matters in simple terms. Please try rephrasing your question or contact a legal professional for specific advice.",
+      constitutionalArticles: [
+        {
+          article: "4",
+          title: "Right of individuals to be dealt with in accordance with law",
+          summary: "No action detrimental to the life, liberty, body, reputation or property of any person shall be taken except in accordance with law."
+        }
+      ],
+      supremeCourtCases: [
+        {
+          title: "General Legal Principles",
+          summary: "Pakistani courts follow established legal precedents and constitutional principles in all matters."
+        }
+      ],
+      recommendedLawyers: [
+        {
+          name: "Legal Consultation Service",
+          area: "General Legal Advice", 
+          region: "All Major Cities"
+        }
+      ],
+      followUpQuestions: [
+        "Can you be more specific about your legal issue?",
+        "What type of legal matter do you need help with?",
+        "Do you need information about a specific Pakistani law?"
+      ],
+      usedFallback: true
+    };
   }
 }
 
