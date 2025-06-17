@@ -5,7 +5,8 @@ import { getFallbackResponse } from './fallbackData.js';
 import { jsonrepair } from 'jsonrepair';
 
 const groq = new Groq({
-  apiKey: "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"
+  apiKey: process.env.GROQ_API_KEY, // API key is now fetched from environment variables
+});
 });
 
 const SYSTEM_PROMPT = `
