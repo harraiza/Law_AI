@@ -7,7 +7,6 @@ import { jsonrepair } from 'jsonrepair';
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY, // API key is now fetched from environment variables
 });
-});
 
 const SYSTEM_PROMPT = `
 You are a Pakistani legal expert AI. Always respond ONLY with a valid JSON object, no explanations or extra text.
